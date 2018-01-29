@@ -8,6 +8,9 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+
+	"github.com/360EntSecGroup-Skylar/excelize"
 )
 
 const (
@@ -26,19 +29,6 @@ type Role struct {
 	Permissions []string `json:"permissions"`
 	Pattern     string   `json:"pattern"`
 	Users       []string `json:"users"`
-}
-
-func load(filename string) (Roles, error) {
-	var roles Roles
-	buf, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return roles, err
-	}
-	err = json.Unmarshal(buf, &roles)
-	if err != nil {
-		return roles, err
-	}
-	return roles, nil
 }
 
 // ServerInstance holds remote REST services
@@ -76,7 +66,6 @@ func die(err error) {
 
 // AssignRole correlates a user with a role
 func (a JenkinsInstance) AssignRole(roleType, name, sid string) {
-
 	p := fmt.Sprintf("/role-strategy/strategy/assignRole")
 	req, err := http.NewRequest(http.MethodPost, a.BaseURL()+p, nil)
 	die(err)
@@ -131,6 +120,54 @@ func (a JenkinsInstance) AddRole(roleType string, name string,
 			res.StatusCode)
 	}
 	log.Printf("added role %s\n", name)
+}
+
+// LoadJSON parses project roles from a given JSON input
+func LoadJSON(filename string) ([]Role, error) {
+	var roles Roles
+	buf, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return roles.Roles, err
+	}
+	err = json.Unmarshal(buf, &roles)
+	if err != nil {
+		return roles.Roles, err
+	}
+	return roles.Roles, nil
+}
+
+func LoadXslx(filename string) ([]Role, error) {
+	var roles []Role
+	xslx, err := excelize.OpenFile(filename)
+	if err != nil {
+		return roles, err
+	}
+
+	// process users
+	rows := xslx.GetRows("Sheet2")
+	sids := make(map[string][]string, len(rows))
+	for _, row := range rows {
+		var users []string
+		roleName := row[0]
+		for _, colCell := range row[1:] {
+			users = append(users, colCell)
+			fmt.Print(colCell, "\t")
+		}
+		sids[roleName] = users
+		fmt.Println()
+	}
+
+	// process roles
+	for _, row := range xslx.GetRows("Sheet1")[1:] {
+		roleName := row[0]
+		permissions := strings.Fields(row[1])
+		pattern := row[2]
+
+		role := Role{roleName, permissions, pattern, sids[roleName]}
+		log.Printf("read role %+v\n", role)
+		roles = append(roles, role)
+	}
+	return roles, nil
 }
 
 // Roles lists all available roles, as of Role Strategy Plugin 2.6.1 only

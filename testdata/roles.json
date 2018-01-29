@@ -1,0 +1,32 @@
+{
+	"roles": [
+		{
+			"name": "build",
+			"permissions": [
+				"hudson.model.Item.Build",
+				"hudson.model.Item.Cancel",
+				"hudson.model.Item.Discover",
+				"hudson.model.Item.Read",
+				"hudson.model.Item.Workspace"
+			],
+			"pattern": "Build.*",
+			"users": [
+				"builduser1",
+				"builduser2",
+				"builduser3"
+			]
+		},
+		{
+			"name": "deployment",
+			"permissions": [
+				"hudson.model.Item.Discover",
+				"hudson.model.Item.Read"
+			],
+			"pattern": "Deployment.*",
+			"users": [
+				"deployuser1",
+				"deployuser2"
+			]
+		}
+	]
+}

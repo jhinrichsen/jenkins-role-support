@@ -1,0 +1,39 @@
+= Commandline support for Jenkins Role Stragy Plugin via REST
+
+Functionality is based on Jenkins Role Strategy Plugin 2.6.1
+
+== Jenkins Role Strategy Plugin REST API 
+
+=== List
+----
+curl -X GET localhost:8080/role-strategy/strategy/getAllRoles
+----
+
+=== Add
+----
+curl -X POST localhost:8080/role-strategy/strategy/addRole --data "type=globalRoles&roleName=ADMIN&permissionIds=hudson.model.Item.Discover,hudson.model.Item.ExtendedRead&amp;overwrite=true"
+----
+
+=== Remove
+----
+curl -X POST localhost:8080/role-strategy/strategy/removeRoles --data "type=globalRoles&roleNames=ADMIN,DEV"
+----
+
+=== Assign user
+----
+curl -X POST localhost:8080/role-strategy/strategy/assignRole --data "type=globalRoles&roleName=ADMIN&sid=username"
+----
+
+=== Unassign
+----
+curl -X POST localhost:8080/role-strategy/strategy/unassignRole --data "type=globalRoles&roleName=ADMIN&sid=username"
+----
+
+=== Remove user from all roles
+----
+curl -X POST localhost:8080/role-strategy/strategy/deleteSid --data "type=globalRoles&sid=username"
+----
+
+== TODO
+- Support destructive role mgmt (delete role, unassign user)
+- Support Jenkins CSRF protection (crumbs)

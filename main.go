@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -17,6 +18,11 @@ const (
 	GlobalRole  = "globalRoles"
 	ProjectRole = "projectRoles"
 	SlaveRole   = "slaveRoles"
+)
+
+const (
+	roleSheet = "Sheet1"
+	userSheet = "Sheet2"
 )
 
 // Only allow projectRoles to be changed
@@ -144,7 +150,7 @@ func LoadXslx(filename string) ([]Role, error) {
 	}
 
 	// process users
-	rows := xslx.GetRows("Sheet2")
+	rows := xslx.GetRows(userSheet)
 	sids := make(map[string][]string, len(rows))
 	for _, row := range rows {
 		var users []string
@@ -158,7 +164,7 @@ func LoadXslx(filename string) ([]Role, error) {
 	}
 
 	// process roles
-	for _, row := range xslx.GetRows("Sheet1")[1:] {
+	for _, row := range xslx.GetRows(roleSheet)[1:] {
 		roleName := row[0]
 		permissions := strings.Fields(row[1])
 		pattern := row[2]
@@ -201,6 +207,7 @@ func main() {
 	password := flag.String("password", "admin", "Jenkins REST auth")
 
 	action := flag.String("action", "getAllRoles", "REST action")
+	filename := flag.String("filename", "roles.xslx", "import filename")
 	overwrite := flag.Bool("overwrite", false,
 		"Allow overwriting role")
 	pattern := flag.String("pattern", ".*", "Role plugin pattern")
@@ -216,8 +223,6 @@ func main() {
 	j := JenkinsInstance{ServerInstance{*protocol, *hostname, *port,
 		*context, *username, *password}}
 	switch *action {
-	case "getAllRoles":
-		j.Roles(*roleType)
 	case "assignRole":
 		j.AssignRole(*roleType, *roleName, *sid)
 		j.Roles(*roleType)
@@ -225,5 +230,29 @@ func main() {
 		j.AddRole(*roleType, *roleName, *permissions, *pattern,
 			*overwrite)
 		j.Roles(*roleType)
+	case "getAllRoles":
+		j.Roles(*roleType)
+	case "importXslx":
+		log.Printf("loading %s\n", *filename)
+		roles, err := LoadXslx(*filename)
+		die(err)
+		for _, role := range roles {
+			log.Printf("creating role %+v\n", role)
+			// the usage of overwrite is rather ondocumented
+			j.AddRole(ProjectRole, role.Name,
+				strings.Join(role.Permissions, ","),
+				role.Pattern, false)
+			for _, user := range role.Users {
+				if len(user) == 0 {
+					continue
+				}
+				log.Printf("assigning user %s to role %s\n",
+					user, role.Name)
+				j.AssignRole(ProjectRole, role.Name, user)
+			}
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "unknown action")
+		os.Exit(1)
 	}
 }
